@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,18 @@ class GroupRegistryError(ValueError):
     """A stable, user-actionable Registry validation failure."""
 
     error_code = "GROUPS_CONFIG_INVALID"
+
+
+class GroupRegistryWriteError(GroupRegistryError):
+    error_code = "GROUPS_CONFIG_WRITE_FAILED"
+
+
+class GroupStatusTransitionError(GroupRegistryError):
+    error_code = "GROUP_STATUS_TRANSITION_INVALID"
+
+
+class GroupRegistryMultiActiveUnsupported(GroupRegistryError):
+    error_code = "GROUPS_MULTI_ACTIVE_UNSUPPORTED"
 
 
 class NoActiveGroupsError(GroupRegistryError):
@@ -101,7 +115,7 @@ def _validate_cutoff(value: Any, name: str) -> str:
     return cutoff
 
 
-def load_group_registry(path: Path) -> GroupRegistry:
+def load_group_registry(path: Path, *, require_active: bool = True) -> GroupRegistry:
     """Load and validate the declarative Group Registry without touching the DB."""
 
     try:
@@ -169,7 +183,7 @@ def load_group_registry(path: Path) -> GroupRegistry:
             )
         )
 
-    if not any(group.status == "active" for group in groups):
+    if require_active and not any(group.status == "active" for group in groups):
         raise NoActiveGroupsError("至少需要一个 active 群")
 
     return GroupRegistry(
@@ -179,3 +193,126 @@ def load_group_registry(path: Path) -> GroupRegistry:
         groups=tuple(groups),
         source=path,
     )
+
+
+def write_group_registry_atomic(path: Path, registry: GroupRegistry) -> None:
+    """Rewrite the Registry with an atomic same-directory replace."""
+
+    serialized = yaml.safe_dump(
+        registry.as_dict(),
+        allow_unicode=True,
+        default_flow_style=False,
+        sort_keys=False,
+    )
+    temporary_path: Path | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+        )
+        temporary_path = Path(temporary_name)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(serialized)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = None
+    except OSError as exc:
+        raise GroupRegistryWriteError(f"无法原子写入配置文件：{path}") from exc
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def add_group(
+    path: Path,
+    *,
+    provider: str,
+    external_id: str,
+    key: str,
+    display_name: str,
+    status: str = "paused",
+) -> GroupEntry:
+    registry = load_group_registry(path, require_active=False)
+    provider = _require_string(provider, "provider")
+    external_id = _require_string(external_id, "external_id")
+    key = _require_string(key, "key")
+    display_name = _require_string(display_name, "display_name")
+    if provider not in SUPPORTED_PROVIDERS:
+        raise GroupRegistryError(f"不支持的 provider：{provider}")
+    if status not in SUPPORTED_STATUSES:
+        raise GroupRegistryError(f"不支持的 status：{status}")
+    if any(group.key == key for group in registry.groups):
+        raise GroupRegistryError(f"key 重复：{key}")
+    if any(
+        group.provider == provider and group.external_id == external_id
+        for group in registry.groups
+    ):
+        raise GroupRegistryError(f"provider+external_id 重复：{provider}+{external_id}")
+    entry = GroupEntry(
+        key=key,
+        provider=provider,
+        external_id=external_id,
+        display_name=display_name,
+        status=status,
+    )
+    updated = GroupRegistry(
+        version=registry.version,
+        timezone=registry.timezone,
+        day_cutoff=registry.day_cutoff,
+        groups=(*registry.groups, entry),
+        source=registry.source,
+    )
+    # Validate the complete candidate before touching the original file.
+    if len(updated.active_groups) > 1:
+        raise GroupRegistryMultiActiveUnsupported(
+            "当前生产流程不支持多个 active 群；请等待 Phase 7C"
+        )
+    write_group_registry_atomic(path, updated)
+    return entry
+
+
+def transition_group(path: Path, *, key: str, target_status: str) -> GroupEntry:
+    registry = load_group_registry(path, require_active=False)
+    try:
+        current = next(group for group in registry.groups if group.key == key)
+    except StopIteration as exc:
+        raise GroupRegistryError(f"群不存在：{key}") from exc
+
+    allowed = {
+        "paused": {"active"},
+        "active": {"paused"},
+        "archived": {"active", "paused"},
+    }
+    if current.status not in allowed[target_status]:
+        raise GroupStatusTransitionError(
+            f"不允许状态转换：{current.status} -> {target_status}（{key}）"
+        )
+    if target_status == "active" and any(
+        group.status == "active" and group.key != key for group in registry.groups
+    ):
+        raise GroupRegistryMultiActiveUnsupported(
+            "当前生产流程不支持多个 active 群；请等待 Phase 7C"
+        )
+    updated_groups = tuple(
+        GroupEntry(
+            key=group.key,
+            provider=group.provider,
+            external_id=group.external_id,
+            display_name=group.display_name,
+            status=target_status if group.key == key else group.status,
+        )
+        for group in registry.groups
+    )
+    updated = GroupRegistry(
+        version=registry.version,
+        timezone=registry.timezone,
+        day_cutoff=registry.day_cutoff,
+        groups=updated_groups,
+        source=registry.source,
+    )
+    write_group_registry_atomic(path, updated)
+    return next(group for group in updated.groups if group.key == key)

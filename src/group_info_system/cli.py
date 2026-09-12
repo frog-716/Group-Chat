@@ -35,7 +35,12 @@ from group_info_system.db.repositories import (
     show_run_record,
 )
 from group_info_system.db.session import read_only_session_factory, session_factory
-from group_info_system.group_registry import load_group_registry
+from group_info_system.group_discovery import discover_feishu_chats
+from group_info_system.group_registry import (
+    add_group,
+    load_group_registry,
+    transition_group,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_GROUPS_CONFIG = ROOT / "config" / "groups.yaml"
@@ -362,7 +367,7 @@ def groups_validate_command(args: argparse.Namespace) -> int:
 
 
 def groups_list_command(args: argparse.Namespace) -> int:
-    registry = load_group_registry(args.config)
+    registry = load_group_registry(args.config, require_active=False)
     print(
         json.dumps(
             {
@@ -384,6 +389,77 @@ def groups_active_command(args: argparse.Namespace) -> int:
     print(
         json.dumps(
             {"groups": [group.as_dict_without_status() for group in registry.active_groups]},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def groups_discover_command(args: argparse.Namespace) -> int:
+    if args.provider != "feishu":
+        raise ValueError(f"不支持的 provider：{args.provider}")
+    registry = load_group_registry(args.config, require_active=False)
+    registered = {(group.provider, group.external_id): group for group in registry.groups}
+    discovered = discover_feishu_chats(cli_path=get_settings().lark_cli)
+    print(
+        json.dumps(
+            {
+                "provider": args.provider,
+                "groups": [
+                    {
+                        **chat.as_dict(),
+                        "already_registered": (args.provider, chat.external_id) in registered,
+                        "registry_status": (
+                            registered[(args.provider, chat.external_id)].status
+                            if (args.provider, chat.external_id) in registered
+                            else None
+                        ),
+                    }
+                    for chat in discovered
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def groups_add_command(args: argparse.Namespace) -> int:
+    entry = add_group(
+        args.config,
+        provider=args.provider,
+        external_id=args.external_id,
+        key=args.key,
+        display_name=args.name,
+        status=args.status,
+    )
+    print(
+        json.dumps(
+            {
+                "command": "groups add",
+                "status": "succeeded",
+                "config": str(args.config),
+                "group": entry.as_dict(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def groups_transition_command(args: argparse.Namespace) -> int:
+    entry = transition_group(args.config, key=args.key, target_status=args.target_status)
+    print(
+        json.dumps(
+            {
+                "command": f"groups {args.groups_command}",
+                "status": "succeeded",
+                "config": str(args.config),
+                "group": entry.as_dict(),
+            },
             ensure_ascii=False,
             indent=2,
         )
@@ -504,6 +580,23 @@ def build_parser() -> argparse.ArgumentParser:
     groups_list.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
     groups_active = groups_subparsers.add_parser("active", help="列出当前 active 群")
     groups_active.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
+    groups_discover = groups_subparsers.add_parser("discover", help="发现可访问的外部群")
+    groups_discover.add_argument("--provider", required=True, choices=("feishu",))
+    groups_discover.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
+    groups_add = groups_subparsers.add_parser("add", help="登记一个群到 Registry")
+    groups_add.add_argument("--provider", required=True, choices=("feishu",))
+    groups_add.add_argument("--external-id", required=True)
+    groups_add.add_argument("--key", required=True)
+    groups_add.add_argument("--name", required=True)
+    groups_add.add_argument("--status", choices=("active", "paused"), default="paused")
+    groups_add.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
+    for action in ("pause", "resume", "archive"):
+        transition = groups_subparsers.add_parser(action, help=f"将群设为 {action}")
+        transition.add_argument("key")
+        transition.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
+        transition.set_defaults(
+            target_status={"pause": "paused", "resume": "active", "archive": "archived"}[action]
+        )
 
     legacy_collect = subparsers.add_parser(
         "collect-feishu", help="兼容旧命令；等价于 collect --source feishu"
@@ -548,6 +641,12 @@ def main(argv: list[str] | None = None) -> int:
             return groups_list_command(args)
         if args.command == "groups" and args.groups_command == "active":
             return groups_active_command(args)
+        if args.command == "groups" and args.groups_command == "discover":
+            return groups_discover_command(args)
+        if args.command == "groups" and args.groups_command == "add":
+            return groups_add_command(args)
+        if args.command == "groups" and args.groups_command in {"pause", "resume", "archive"}:
+            return groups_transition_command(args)
         if args.command == "collect-feishu":
             return collect_feishu_command(args)
         if args.command == "build-report":
