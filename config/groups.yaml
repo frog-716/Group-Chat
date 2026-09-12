@@ -1,0 +1,12 @@
+version: "group-info/groups/v1"
+
+defaults:
+  timezone: "Asia/Shanghai"
+  day_cutoff: "06:00"
+
+groups:
+  - key: management-piglet
+    provider: feishu
+    external_id: "oc_614897f8d7eb5ad9d21f7e6705b99cd5"
+    display_name: "管理猪小群"
+    status: active

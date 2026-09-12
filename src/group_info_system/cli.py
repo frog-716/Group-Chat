@@ -31,13 +31,14 @@ from group_info_system.collectors.feishu import FeishuCollector
 from group_info_system.collectors.simulated import SimulatedCollector
 from group_info_system.config import get_settings
 from group_info_system.db.repositories import (
-    RunNotFoundError,
     latest_run_records,
     show_run_record,
 )
 from group_info_system.db.session import read_only_session_factory, session_factory
+from group_info_system.group_registry import load_group_registry
 
 ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_GROUPS_CONFIG = ROOT / "config" / "groups.yaml"
 
 
 def parse_datetime(value: str) -> datetime:
@@ -339,6 +340,57 @@ def runs_show_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def groups_validate_command(args: argparse.Namespace) -> int:
+    registry = load_group_registry(args.config)
+    print(
+        json.dumps(
+            {
+                "command": "groups validate",
+                "status": "succeeded",
+                "config": str(registry.source),
+                "version": registry.version,
+                "timezone": registry.timezone,
+                "day_cutoff": registry.day_cutoff,
+                "group_count": len(registry.groups),
+                "active_count": len(registry.active_groups),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def groups_list_command(args: argparse.Namespace) -> int:
+    registry = load_group_registry(args.config)
+    print(
+        json.dumps(
+            {
+                "command": "groups list",
+                "status": "succeeded",
+                "config": str(registry.source),
+                "version": registry.version,
+                "groups": [group.as_dict() for group in registry.groups],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def groups_active_command(args: argparse.Namespace) -> int:
+    registry = load_group_registry(args.config)
+    print(
+        json.dumps(
+            {"groups": [group.as_dict_without_status() for group in registry.active_groups]},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
 def build_report_command(args: argparse.Namespace) -> int:
     settings = get_settings()
     upgrade_database(settings.database_url)
@@ -362,12 +414,12 @@ def _failure_payload(args: argparse.Namespace, exc: Exception) -> dict[str, obje
         command_name = f"report {args.report_command}"
     elif args.command == "runs":
         command_name = f"runs {args.runs_command}"
+    elif args.command == "groups":
+        command_name = f"groups {args.groups_command}"
     payload: dict[str, object] = {
         "command": command_name,
         "status": "failed",
-        "error_code": (
-            exc.error_code if isinstance(exc, RunNotFoundError) else type(exc).__name__
-        ),
+        "error_code": getattr(exc, "error_code", type(exc).__name__),
     }
     run_id = getattr(exc, "run_id", None)
     if run_id is not None:
@@ -444,6 +496,15 @@ def build_parser() -> argparse.ArgumentParser:
     runs_show.add_argument("--kind", required=True, choices=("collection", "analysis", "report"))
     runs_show.add_argument("--id", required=True, type=int)
 
+    groups = subparsers.add_parser("groups", help="读取并校验群聊配置")
+    groups_subparsers = groups.add_subparsers(dest="groups_command", required=True)
+    groups_validate = groups_subparsers.add_parser("validate", help="校验 groups.yaml")
+    groups_validate.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
+    groups_list = groups_subparsers.add_parser("list", help="列出 groups.yaml 中的群")
+    groups_list.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
+    groups_active = groups_subparsers.add_parser("active", help="列出当前 active 群")
+    groups_active.add_argument("--config", type=Path, default=DEFAULT_GROUPS_CONFIG)
+
     legacy_collect = subparsers.add_parser(
         "collect-feishu", help="兼容旧命令；等价于 collect --source feishu"
     )
@@ -481,6 +542,12 @@ def main(argv: list[str] | None = None) -> int:
             return runs_latest_command(args)
         if args.command == "runs" and args.runs_command == "show":
             return runs_show_command(args)
+        if args.command == "groups" and args.groups_command == "validate":
+            return groups_validate_command(args)
+        if args.command == "groups" and args.groups_command == "list":
+            return groups_list_command(args)
+        if args.command == "groups" and args.groups_command == "active":
+            return groups_active_command(args)
         if args.command == "collect-feishu":
             return collect_feishu_command(args)
         if args.command == "build-report":
