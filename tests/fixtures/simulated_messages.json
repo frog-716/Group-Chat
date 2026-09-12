@@ -1,0 +1,72 @@
+{
+  "schema_version": "simulated-v1",
+  "messages": [
+    {
+      "message_id": "demo-001",
+      "sent_at": "2026-09-10T07:12:00+08:00",
+      "sender_id": "member-01",
+      "sender_name": "林舟",
+      "message_type": "text",
+      "content": "用户访谈完成了第一轮，三位受访者都希望日报里的结论可以直接回到原始消息。"
+    },
+    {
+      "message_id": "demo-002",
+      "sent_at": "2026-09-10T09:25:00+08:00",
+      "sender_id": "member-02",
+      "sender_name": "周弥",
+      "message_type": "text",
+      "content": "操作步骤：先保存原始消息，再运行结构化分析，最后校验证据编号和逐字摘录。"
+    },
+    {
+      "message_id": "demo-003",
+      "sent_at": "2026-09-10T11:40:00+08:00",
+      "sender_id": "member-03",
+      "sender_name": "温言",
+      "message_type": "text",
+      "content": "注意不要按消息正文去重，同一个人可能连续发送两次完全相同但含义不同的确认。"
+    },
+    {
+      "message_id": "demo-004",
+      "sent_at": "2026-09-10T15:05:00+08:00",
+      "sender_id": "member-01",
+      "sender_name": "林舟",
+      "message_type": "text",
+      "content": "下一步计划是先让模拟数据闭环稳定，再接入飞书增量同步。"
+    },
+    {
+      "message_id": "demo-005",
+      "sent_at": "2026-09-10T18:20:00+08:00",
+      "sender_id": "member-04",
+      "sender_name": "江禾",
+      "message_type": "text",
+      "content": "报告页面需要同时适合手机和桌面，并明确标出哪些内容是分析判断。"
+    },
+    {
+      "message_id": "demo-006",
+      "sent_at": "2026-09-10T20:11:00+08:00",
+      "sender_id": "member-02",
+      "sender_name": "周弥",
+      "message_type": "text",
+      "content": "收到"
+    },
+    {
+      "message_id": "demo-system-01",
+      "sent_at": "2026-09-10T21:00:00+08:00",
+      "sender_id": "",
+      "sender_name": "系统",
+      "message_type": "system",
+      "content": "一名成员加入群聊",
+      "is_system": true
+    },
+    {
+      "message_id": "demo-deleted-01",
+      "sent_at": "2026-09-10T22:00:00+08:00",
+      "sender_id": "member-05",
+      "sender_name": "顾遥",
+      "message_type": "text",
+      "content": "[消息已删除]",
+      "is_deleted": true
+    }
+  ]
+}
+

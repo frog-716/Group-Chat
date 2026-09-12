@@ -1,0 +1,101 @@
+{
+  "schema_version": "event-quality-v1",
+  "messages": [
+    {
+      "message_id": "quality-001",
+      "sent_at": "2026-09-12T09:00:00+08:00",
+      "sender_id": "member-01",
+      "sender_name": "成员一",
+      "message_type": "text",
+      "content": "版本 1.2 已经发布，日报页面可以正常访问。"
+    },
+    {
+      "message_id": "quality-002",
+      "sent_at": "2026-09-12T09:10:00+08:00",
+      "sender_id": "member-02",
+      "sender_name": "成员二",
+      "message_type": "text",
+      "content": "操作步骤：先同步消息，然后检查证据编号，最后生成报告。"
+    },
+    {
+      "message_id": "quality-003",
+      "sent_at": "2026-09-12T09:20:00+08:00",
+      "sender_id": "member-03",
+      "sender_name": "成员三",
+      "message_type": "text",
+      "content": "注意：重复修改原始版本会破坏证据链。"
+    },
+    {
+      "message_id": "quality-004",
+      "sent_at": "2026-09-12T09:30:00+08:00",
+      "sender_id": "member-01",
+      "sender_name": "成员一",
+      "message_type": "text",
+      "content": "下一步计划是补充月报覆盖率检查。"
+    },
+    {
+      "message_id": "quality-005",
+      "sent_at": "2026-09-12T10:00:00+08:00",
+      "sender_id": "member-04",
+      "sender_name": "成员四",
+      "message_type": "text",
+      "content": "月报统计口径确定为自然月。"
+    },
+    {
+      "message_id": "quality-006",
+      "sent_at": "2026-09-12T10:01:00+08:00",
+      "sender_id": "member-04",
+      "sender_name": "成员四",
+      "message_type": "text",
+      "content": "补充：月报的时区统一使用 Asia/Shanghai。"
+    },
+    {
+      "message_id": "quality-007",
+      "sent_at": "2026-09-12T10:20:00+08:00",
+      "sender_id": "member-05",
+      "sender_name": "成员五",
+      "message_type": "text",
+      "content": "当前风险是权限不足，下一步先完成用户授权。"
+    },
+    {
+      "message_id": "quality-008",
+      "sent_at": "2026-09-12T11:00:00+08:00",
+      "sender_id": "member-06",
+      "sender_name": "成员六",
+      "message_type": "text",
+      "content": "日报页面已经发布。"
+    },
+    {
+      "message_id": "quality-009",
+      "sent_at": "2026-09-12T11:01:00+08:00",
+      "sender_id": "member-06",
+      "sender_name": "成员六",
+      "message_type": "text",
+      "content": "日报页面已经发布。"
+    },
+    {
+      "message_id": "quality-010",
+      "sent_at": "2026-09-12T11:10:00+08:00",
+      "sender_id": "member-02",
+      "sender_name": "成员二",
+      "message_type": "text",
+      "content": "收到"
+    },
+    {
+      "message_id": "quality-011",
+      "sent_at": "2026-09-12T11:20:00+08:00",
+      "sender_id": "member-03",
+      "sender_name": "成员三",
+      "message_type": "text",
+      "content": "月报是否需要覆盖所有测试群？"
+    },
+    {
+      "message_id": "quality-012",
+      "sent_at": "2026-09-12T11:30:00+08:00",
+      "sender_id": "member-04",
+      "sender_name": "成员四",
+      "message_type": "text",
+      "content": "飞书群消息使用平台消息编号作为稳定身份。"
+    }
+  ]
+}

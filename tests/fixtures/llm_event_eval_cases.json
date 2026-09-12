@@ -1,0 +1,273 @@
+{
+  "schema_version": "event-eval-v2",
+  "cases": [
+    {
+      "case_id": "multi_message_one_event",
+      "messages": [
+        {
+          "version_id": 1101,
+          "evidence_id": "msgv_eval_1101",
+          "sent_at": "2026-09-12T01:00:00+00:00",
+          "sender_name": "成员一",
+          "content": "月报先按自然月统计。"
+        },
+        {
+          "version_id": 1102,
+          "evidence_id": "msgv_eval_1102",
+          "sent_at": "2026-09-12T01:02:00+00:00",
+          "sender_name": "成员二",
+          "content": "确认采用自然月，时区统一为 Asia/Shanghai。"
+        }
+      ],
+      "reference_output": {
+        "events": [
+          {
+            "event_type": "decision",
+            "report_section": "today",
+            "title": "月报统计口径确定",
+            "summary": "月报采用自然月口径，并统一使用 Asia/Shanghai 时区。",
+            "analysis_kind": "source_fact",
+            "time_range": {
+              "start": "2026-09-12T01:00:00+00:00",
+              "end": "2026-09-12T01:02:00+00:00"
+            },
+            "message_version_ids": [1101, 1102]
+          }
+        ]
+      },
+      "expectations": {
+        "event_count": 1,
+        "required_events": [
+          {
+            "event_type": "decision",
+            "report_section": "today",
+            "message_version_ids": [1101, 1102],
+            "time_shape": "time_range",
+            "summary_must_not_contain": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "one_message_multiple_events",
+      "messages": [
+        {
+          "version_id": 1201,
+          "evidence_id": "msgv_eval_1201",
+          "sent_at": "2026-09-12T02:00:00+00:00",
+          "sender_name": "成员三",
+          "content": "决定周五发布，新版本上线前由小王完成回归检查。"
+        }
+      ],
+      "reference_output": {
+        "events": [
+          {
+            "event_type": "decision",
+            "report_section": "today",
+            "title": "发布日期确定",
+            "summary": "新版本的发布日期已经确定为周五。",
+            "analysis_kind": "source_fact",
+            "event_time": "2026-09-12T02:00:00+00:00",
+            "message_version_ids": [1201]
+          },
+          {
+            "event_type": "action",
+            "report_section": "next",
+            "title": "完成发布前回归检查",
+            "summary": "小王需要在新版本上线前完成回归检查。",
+            "analysis_kind": "source_fact",
+            "event_time": "2026-09-12T02:00:00+00:00",
+            "message_version_ids": [1201]
+          }
+        ]
+      },
+      "expectations": {
+        "event_count": 2,
+        "required_events": [
+          {
+            "event_type": "decision",
+            "report_section": "today",
+            "message_version_ids": [1201],
+            "time_shape": "event_time",
+            "summary_must_not_contain": ["回归", "检查", "小王"],
+            "max_source_similarity": 0.85
+          },
+          {
+            "event_type": "action",
+            "report_section": "next",
+            "message_version_ids": [1201],
+            "time_shape": "event_time",
+            "summary_must_not_contain": ["决定"],
+            "max_source_similarity": 0.85
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "casual_chat_no_event",
+      "messages": [
+        {
+          "version_id": 1301,
+          "evidence_id": "msgv_eval_1301",
+          "sent_at": "2026-09-12T03:00:00+00:00",
+          "sender_name": "成员一",
+          "content": "哈哈"
+        },
+        {
+          "version_id": 1302,
+          "evidence_id": "msgv_eval_1302",
+          "sent_at": "2026-09-12T03:01:00+00:00",
+          "sender_name": "成员二",
+          "content": "收到"
+        }
+      ],
+      "reference_output": {
+        "events": []
+      },
+      "expectations": {
+        "event_count": 0,
+        "required_events": []
+      }
+    },
+    {
+      "case_id": "repeated_discussion_one_event",
+      "messages": [
+        {
+          "version_id": 1401,
+          "evidence_id": "msgv_eval_1401",
+          "sent_at": "2026-09-12T04:00:00+00:00",
+          "sender_name": "成员四",
+          "content": "日报页面已经发布。"
+        },
+        {
+          "version_id": 1402,
+          "evidence_id": "msgv_eval_1402",
+          "sent_at": "2026-09-12T04:02:00+00:00",
+          "sender_name": "成员五",
+          "content": "确认一下，日报页面已经发布。"
+        }
+      ],
+      "reference_output": {
+        "events": [
+          {
+            "event_type": "progress",
+            "report_section": "today",
+            "title": "日报页面发布完成",
+            "summary": "日报页面已经完成发布并得到确认。",
+            "analysis_kind": "source_fact",
+            "time_range": {
+              "start": "2026-09-12T04:00:00+00:00",
+              "end": "2026-09-12T04:02:00+00:00"
+            },
+            "message_version_ids": [1401, 1402]
+          }
+        ]
+      },
+      "expectations": {
+        "event_count": 1,
+        "required_events": [
+          {
+            "event_type": "progress",
+            "report_section": "today",
+            "message_version_ids": [1401, 1402],
+            "time_shape": "time_range",
+            "summary_must_not_contain": []
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "risk_and_action",
+      "messages": [
+        {
+          "version_id": 1501,
+          "evidence_id": "msgv_eval_1501",
+          "sent_at": "2026-09-12T05:00:00+00:00",
+          "sender_name": "成员六",
+          "content": "当前接口权限不足，今天先提交权限申请，避免明天同步失败。"
+        }
+      ],
+      "reference_output": {
+        "events": [
+          {
+            "event_type": "risk",
+            "report_section": "pitfalls",
+            "title": "接口权限不足",
+            "summary": "现有接口权限可能导致后续消息同步失败。",
+            "analysis_kind": "analysis",
+            "event_time": "2026-09-12T05:00:00+00:00",
+            "message_version_ids": [1501]
+          },
+          {
+            "event_type": "action",
+            "report_section": "next",
+            "title": "提交接口权限申请",
+            "summary": "需要在当天提交权限申请以保障后续同步。",
+            "analysis_kind": "source_fact",
+            "event_time": "2026-09-12T05:00:00+00:00",
+            "message_version_ids": [1501]
+          }
+        ]
+      },
+      "expectations": {
+        "event_count": 2,
+        "required_events": [
+          {
+            "event_type": "risk",
+            "report_section": "pitfalls",
+            "message_version_ids": [1501],
+            "time_shape": "event_time",
+            "summary_must_not_contain": ["提交", "申请"],
+            "max_source_similarity": 0.85
+          },
+          {
+            "event_type": "action",
+            "report_section": "next",
+            "message_version_ids": [1501],
+            "time_shape": "event_time",
+            "summary_must_not_contain": ["风险", "失败", "权限不足"],
+            "max_source_similarity": 0.85
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "reusable_method_howto",
+      "messages": [
+        {
+          "version_id": 1601,
+          "evidence_id": "msgv_eval_1601",
+          "sent_at": "2026-09-12T06:00:00+00:00",
+          "sender_name": "成员七",
+          "content": "同步游标异常时，先读取最后成功水位，再从该时间点向前重叠五分钟重新拉取。"
+        }
+      ],
+      "reference_output": {
+        "events": [
+          {
+            "event_type": "information",
+            "report_section": "howto",
+            "title": "同步游标异常恢复方法",
+            "summary": "游标异常可通过读取最后成功水位并向前增加五分钟重叠窗口后重新拉取来恢复。",
+            "analysis_kind": "source_fact",
+            "event_time": "2026-09-12T06:00:00+00:00",
+            "message_version_ids": [1601]
+          }
+        ]
+      },
+      "expectations": {
+        "event_count": 1,
+        "required_events": [
+          {
+            "event_type": "information",
+            "report_section": "howto",
+            "message_version_ids": [1601],
+            "time_shape": "event_time",
+            "summary_must_not_contain": [],
+            "max_source_similarity": 0.85
+          }
+        ]
+      }
+    }
+  ]
+}
