@@ -288,7 +288,7 @@ def test_groups_active_reflects_lifecycle_change(tmp_path: Path, capsys: pytest.
     assert "oc_paused" in {group["external_id"] for group in after["groups"]}
 
 
-def test_add_active_or_resume_second_group_is_rejected(
+def test_add_active_or_resume_second_group_is_allowed(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     path = write_config(tmp_path)
@@ -308,10 +308,10 @@ def test_add_active_or_resume_second_group_is_rejected(
         "--status",
         "active",
     ]
-    assert main(add_args) == 1
-    output = json.loads(capsys.readouterr().err)
-    assert output["error_code"] == "GROUPS_MULTI_ACTIVE_UNSUPPORTED"
+    assert main(add_args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["group"]["status"] == "active"
 
-    assert main(["groups", "resume", "paused-group", "--config", str(path)]) == 1
-    output = json.loads(capsys.readouterr().err)
-    assert output["error_code"] == "GROUPS_MULTI_ACTIVE_UNSUPPORTED"
+    assert main(["groups", "resume", "paused-group", "--config", str(path)]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["group"]["status"] == "active"

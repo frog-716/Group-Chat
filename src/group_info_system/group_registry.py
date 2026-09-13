@@ -30,10 +30,6 @@ class GroupStatusTransitionError(GroupRegistryError):
     error_code = "GROUP_STATUS_TRANSITION_INVALID"
 
 
-class GroupRegistryMultiActiveUnsupported(GroupRegistryError):
-    error_code = "GROUPS_MULTI_ACTIVE_UNSUPPORTED"
-
-
 class NoActiveGroupsError(GroupRegistryError):
     error_code = "GROUPS_NO_ACTIVE"
 
@@ -267,10 +263,7 @@ def add_group(
         source=registry.source,
     )
     # Validate the complete candidate before touching the original file.
-    if len(updated.active_groups) > 1:
-        raise GroupRegistryMultiActiveUnsupported(
-            "当前生产流程不支持多个 active 群；请等待 Phase 7C"
-        )
+    # Multiple active groups are valid; Execution Scope freezes the run set.
     write_group_registry_atomic(path, updated)
     return entry
 
@@ -290,12 +283,6 @@ def transition_group(path: Path, *, key: str, target_status: str) -> GroupEntry:
     if current.status not in allowed[target_status]:
         raise GroupStatusTransitionError(
             f"不允许状态转换：{current.status} -> {target_status}（{key}）"
-        )
-    if target_status == "active" and any(
-        group.status == "active" and group.key != key for group in registry.groups
-    ):
-        raise GroupRegistryMultiActiveUnsupported(
-            "当前生产流程不支持多个 active 群；请等待 Phase 7C"
         )
     updated_groups = tuple(
         GroupEntry(
