@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -41,6 +51,7 @@ class CollectionRunRow(Base):
     fetched_count: Mapped[int] = mapped_column(Integer, default=0)
     inserted_count: Mapped[int] = mapped_column(Integer, default=0)
     error_code: Mapped[str | None] = mapped_column(String(128))
+    execution_scope_id: Mapped[int | None] = mapped_column(ForeignKey("execution_scopes.id"))
 
 
 class MessageRow(Base):
@@ -108,6 +119,48 @@ class AnalysisRunRow(Base):
     status: Mapped[str] = mapped_column(String(32))
     structured_output: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    execution_scope_id: Mapped[int | None] = mapped_column(ForeignKey("execution_scopes.id"))
+
+
+class ExecutionScopeRow(Base):
+    __tablename__ = "execution_scopes"
+    __table_args__ = (
+        UniqueConstraint(
+            "kind", "window_start", "window_end", name="uq_execution_scopes_identity"
+        ),
+        Index("idx_execution_scopes_fingerprint", "scope_fingerprint"),
+        CheckConstraint("window_start < window_end", name="ck_execution_scopes_window"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(64))
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    scope_fingerprint: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ExecutionScopeGroupRow(Base):
+    __tablename__ = "execution_scope_groups"
+    __table_args__ = (
+        UniqueConstraint(
+            "execution_scope_id",
+            "provider",
+            "external_id",
+            name="uq_execution_scope_groups_external",
+        ),
+        UniqueConstraint(
+            "execution_scope_id", "ordinal", name="uq_execution_scope_groups_ordinal"
+        ),
+        Index("idx_execution_scope_groups_scope", "execution_scope_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    execution_scope_id: Mapped[int] = mapped_column(ForeignKey("execution_scopes.id"))
+    registry_key: Mapped[str] = mapped_column(String(255))
+    provider: Mapped[str] = mapped_column(String(32))
+    external_id: Mapped[str] = mapped_column(String(255))
+    ordinal: Mapped[int] = mapped_column(Integer)
 
 
 class AnalysisInputRow(Base):

@@ -28,6 +28,7 @@ def collect_into_store(
     chat_id: str,
     since: datetime,
     until: datetime,
+    execution_scope_id: int | None = None,
 ) -> CollectionBatch:
     return collect_into_store_with_outcome(
         session=session,
@@ -35,6 +36,7 @@ def collect_into_store(
         chat_id=chat_id,
         since=since,
         until=until,
+        execution_scope_id=execution_scope_id,
     ).batch
 
 
@@ -45,6 +47,7 @@ def collect_into_store_with_outcome(
     chat_id: str,
     since: datetime,
     until: datetime,
+    execution_scope_id: int | None = None,
 ) -> CollectionOutcome:
     if since.tzinfo is None or until.tzinfo is None:
         raise ValueError("since and until must be timezone-aware")
@@ -53,7 +56,13 @@ def collect_into_store_with_outcome(
 
     repository = MessageRepository(session)
     cursor = repository.get_cursor(collector.provider, chat_id)
-    run = repository.start_run(collector.provider, chat_id, since, until)
+    run = repository.start_run(
+        collector.provider,
+        chat_id,
+        since,
+        until,
+        execution_scope_id=execution_scope_id,
+    )
     run_id = run.id
     session.commit()
     try:

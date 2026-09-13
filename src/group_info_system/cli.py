@@ -18,6 +18,11 @@ from group_info_system.application.collection import (
     collect_into_store,
     collect_into_store_with_outcome,
 )
+from group_info_system.application.execution_scope import (
+    create_or_get_scope,
+    get_scope,
+    get_scope_group,
+)
 from group_info_system.application.handoff import (
     create_analysis_request,
     import_analysis_response,
@@ -103,23 +108,43 @@ def demo_command() -> int:
 def collect_command(args: argparse.Namespace) -> int:
     settings = get_settings()
     upgrade_database(settings.database_url)
-    until = args.until or datetime.now(UTC)
-    since = args.since or until - timedelta(days=30)
-    if args.source != "feishu":
-        raise ValueError(f"不支持的 Collector：{args.source}")
-    collector = FeishuCollector(
-        cli_path=settings.lark_cli,
-        chat_name=args.chat_name,
-        local_timezone=settings.timezone,
-    )
     sessions = session_factory(settings.database_url)
     with sessions() as session:
+        execution_scope_id = None
+        scope_id = getattr(args, "scope_id", None)
+        if scope_id is not None:
+            if args.since is not None or args.until is not None:
+                raise ValueError("Scoped collect 不接受 --since/--until")
+            if not getattr(args, "group_key", None):
+                raise ValueError("Scoped collect 必须提供 --group-key")
+            scope = get_scope(session, scope_id)
+            group = get_scope_group(scope, args.group_key)
+            if group.provider != "feishu":
+                raise ValueError(f"不支持的 Collector：{group.provider}")
+            chat_id = group.external_id
+            chat_name = None
+            since = scope.window_start
+            until = scope.window_end
+            execution_scope_id = scope.id
+        else:
+            if args.source != "feishu":
+                raise ValueError(f"不支持的 Collector：{args.source}")
+            chat_id = args.chat_id
+            chat_name = args.chat_name
+            until = args.until or datetime.now(UTC)
+            since = args.since or until - timedelta(days=30)
+        collector = FeishuCollector(
+            cli_path=settings.lark_cli,
+            chat_name=chat_name,
+            local_timezone=settings.timezone,
+        )
         outcome = collect_into_store_with_outcome(
             session=session,
             collector=collector,
-            chat_id=args.chat_id,
+            chat_id=chat_id,
             since=since,
             until=until,
+            execution_scope_id=execution_scope_id,
         )
     print(
         json.dumps(
@@ -129,6 +154,7 @@ def collect_command(args: argparse.Namespace) -> int:
                 "collection_run_id": outcome.collection_run_id,
                 "provider": outcome.batch.provider,
                 "chat_id": outcome.batch.chat_id,
+                "execution_scope_id": execution_scope_id,
                 "mode": outcome.batch.mode,
                 "fetched": len(outcome.batch.messages),
                 "inserted": outcome.inserted_count,
@@ -195,11 +221,24 @@ def analyze_request_command(args: argparse.Namespace) -> int:
     upgrade_database(settings.database_url)
     sessions = session_factory(settings.database_url)
     with sessions() as session:
+        execution_scope_id = args.scope_id
+        if execution_scope_id is not None:
+            if args.start is not None or args.end is not None:
+                raise ValueError("Scoped analyze-request 不接受 --start/--end")
+            scope = get_scope(session, execution_scope_id)
+            start = scope.window_start
+            end = scope.window_end
+        else:
+            if args.start is None or args.end is None:
+                raise ValueError("Legacy analyze-request 必须同时提供 --start/--end")
+            start = args.start
+            end = args.end
         outcome = create_analysis_request(
             session=session,
             model=args.model,
-            window_start=args.start,
-            window_end=args.end,
+            window_start=start,
+            window_end=end,
+            execution_scope_id=execution_scope_id,
         )
         envelope_json = outcome.envelope.model_dump_json(indent=2)
         if args.output is not None:
@@ -337,6 +376,51 @@ def runs_show_command(args: argparse.Namespace) -> int:
                 "status": "succeeded",
                 "kind": args.kind,
                 "run": result,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def execution_scope_create_command(args: argparse.Namespace) -> int:
+    settings = get_settings()
+    upgrade_database(settings.database_url)
+    sessions = session_factory(settings.database_url)
+    with sessions() as session:
+        scope, reused = create_or_get_scope(
+            session=session,
+            kind=args.kind,
+            window_start=args.start,
+            window_end=args.end,
+            config_path=args.config,
+        )
+    print(
+        json.dumps(
+            {
+                "command": "execution-scope create",
+                "status": "succeeded",
+                **scope.as_dict(reused=reused),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def execution_scope_show_command(args: argparse.Namespace) -> int:
+    settings = get_settings()
+    sessions = read_only_session_factory(settings.database_url)
+    with sessions() as session:
+        scope = get_scope(session, args.id)
+    print(
+        json.dumps(
+            {
+                "command": "execution-scope show",
+                "status": "succeeded",
+                **scope.as_dict(),
             },
             ensure_ascii=False,
             indent=2,
@@ -492,6 +576,8 @@ def _failure_payload(args: argparse.Namespace, exc: Exception) -> dict[str, obje
         command_name = f"runs {args.runs_command}"
     elif args.command == "groups":
         command_name = f"groups {args.groups_command}"
+    elif args.command == "execution-scope":
+        command_name = f"execution-scope {args.scope_command}"
     payload: dict[str, object] = {
         "command": command_name,
         "status": "failed",
@@ -511,8 +597,14 @@ def _failure_payload(args: argparse.Namespace, exc: Exception) -> dict[str, obje
     return payload
 
 
-def _add_collection_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--chat-id", required=True)
+def _add_collection_arguments(parser: argparse.ArgumentParser, *, scoped: bool = False) -> None:
+    if scoped:
+        identity = parser.add_mutually_exclusive_group(required=True)
+        identity.add_argument("--chat-id")
+        identity.add_argument("--scope-id", type=int)
+        parser.add_argument("--group-key")
+    else:
+        parser.add_argument("--chat-id", required=True)
     parser.add_argument("--chat-name", help="可选群显示名；不影响同步身份")
     parser.add_argument("--since", type=parse_datetime)
     parser.add_argument("--until", type=parse_datetime)
@@ -531,7 +623,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     collect = subparsers.add_parser("collect", help="调用 Collector 并写入原始消息层")
     collect.add_argument("--source", default="feishu", help="Collector 名称，当前为 feishu")
-    _add_collection_arguments(collect)
+    _add_collection_arguments(collect, scoped=True)
 
     analyze = subparsers.add_parser("analyze", help="冻结 Analysis Input 并生成 Event")
     analyze.add_argument("--analyzer", default="mock", help="Analyzer 名称，当前默认 mock")
@@ -542,7 +634,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     analyze_request.add_argument("--model", required=True, help="WorkBuddy 实际调用的模型")
     analyze_request.add_argument("--output", type=Path, help="私有 Request JSON 输出路径")
-    _add_window_arguments(analyze_request)
+    analysis_scope = analyze_request.add_mutually_exclusive_group(required=True)
+    analysis_scope.add_argument("--scope-id", type=int)
+    analysis_scope.add_argument("--start", type=parse_datetime)
+    analyze_request.add_argument("--end", type=parse_datetime)
 
     analyze_response = subparsers.add_parser(
         "analyze-response", help="校验并导入 WorkBuddy LLM Response"
@@ -571,6 +666,16 @@ def build_parser() -> argparse.ArgumentParser:
     runs_show = runs_subparsers.add_parser("show", help="按类型和 ID 查询一个运行")
     runs_show.add_argument("--kind", required=True, choices=("collection", "analysis", "report"))
     runs_show.add_argument("--id", required=True, type=int)
+
+    execution_scope = subparsers.add_parser("execution-scope", help="管理不可变执行范围")
+    scope_subparsers = execution_scope.add_subparsers(dest="scope_command", required=True)
+    scope_create = scope_subparsers.add_parser("create", help="创建或复用 Execution Scope")
+    scope_create.add_argument("--kind", required=True)
+    scope_create.add_argument("--start", required=True, type=parse_datetime)
+    scope_create.add_argument("--end", required=True, type=parse_datetime)
+    scope_create.add_argument("--config", required=True, type=Path)
+    scope_show = scope_subparsers.add_parser("show", help="只读查看 Execution Scope")
+    scope_show.add_argument("--id", required=True, type=int)
 
     groups = subparsers.add_parser("groups", help="读取并校验群聊配置")
     groups_subparsers = groups.add_subparsers(dest="groups_command", required=True)
@@ -635,6 +740,10 @@ def main(argv: list[str] | None = None) -> int:
             return runs_latest_command(args)
         if args.command == "runs" and args.runs_command == "show":
             return runs_show_command(args)
+        if args.command == "execution-scope" and args.scope_command == "create":
+            return execution_scope_create_command(args)
+        if args.command == "execution-scope" and args.scope_command == "show":
+            return execution_scope_show_command(args)
         if args.command == "groups" and args.groups_command == "validate":
             return groups_validate_command(args)
         if args.command == "groups" and args.groups_command == "list":

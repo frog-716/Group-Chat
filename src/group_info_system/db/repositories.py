@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from group_info_system.domain.analysis import EventAnalysisResult
@@ -80,6 +80,7 @@ class MessageRepository:
         chat_id: str,
         since: datetime | None,
         until: datetime | None,
+        execution_scope_id: int | None = None,
     ) -> CollectionRunRow:
         row = CollectionRunRow(
             provider=provider,
@@ -87,6 +88,7 @@ class MessageRepository:
             requested_since=since,
             requested_until=until,
             status="running",
+            execution_scope_id=execution_scope_id,
         )
         self.session.add(row)
         self.session.flush()
@@ -177,12 +179,30 @@ class MessageRepository:
         return inserted
 
     def current_reportable(self, start: datetime, end: datetime) -> list[StoredMessage]:
+        return self._current_reportable_rows(start, end)
+
+    def current_reportable_for_scope(
+        self,
+        start: datetime,
+        end: datetime,
+        scope_groups: tuple[tuple[str, str], ...],
+    ) -> list[StoredMessage]:
+        if not scope_groups:
+            return []
+        return self._current_reportable_rows(start, end, scope_groups)
+
+    def _current_reportable_rows(
+        self,
+        start: datetime,
+        end: datetime,
+        scope_groups: tuple[tuple[str, str], ...] | None = None,
+    ) -> list[StoredMessage]:
         latest = (
             select(MessageVersionRow.message_id, func.max(MessageVersionRow.id).label("version_id"))
             .group_by(MessageVersionRow.message_id)
             .subquery()
         )
-        rows = self.session.execute(
+        statement = (
             select(MessageVersionRow, MessageRow, ChatRow)
             .join(latest, MessageVersionRow.id == latest.c.version_id)
             .join(MessageRow, MessageVersionRow.message_id == MessageRow.id)
@@ -194,7 +214,16 @@ class MessageRepository:
                 MessageVersionRow.is_deleted.is_(False),
             )
             .order_by(MessageVersionRow.sent_at, MessageVersionRow.id)
-        ).all()
+        )
+        if scope_groups is not None:
+            predicates = [
+                (ChatRow.provider == provider) & (ChatRow.external_id == external_id)
+                for provider, external_id in scope_groups
+            ]
+            statement = statement.where(
+                or_(*predicates)
+            )
+        rows = self.session.execute(statement).all()
         return [
             StoredMessage(
                 version_id=version.id,
@@ -289,6 +318,7 @@ class ReportRepository:
         input_hash: str,
         window_start: datetime,
         window_end: datetime,
+        execution_scope_id: int | None = None,
     ) -> AnalysisRunRow:
         row = AnalysisRunRow(
             analyzer=analyzer,
@@ -300,6 +330,7 @@ class ReportRepository:
             window_end=window_end,
             status="running",
             structured_output=None,
+            execution_scope_id=execution_scope_id,
         )
         self.session.add(row)
         self.session.flush()

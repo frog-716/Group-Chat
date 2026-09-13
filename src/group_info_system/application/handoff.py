@@ -14,6 +14,11 @@ from group_info_system.analysis.llm import LLMEventPayload, build_event_request
 from group_info_system.analysis.prompts import VersionedPrompt, load_event_extraction_prompt
 from group_info_system.analysis.validator import validate_event_analysis
 from group_info_system.application.analysis import analysis_input_hash
+from group_info_system.application.execution_scope import (
+    ExecutionScope,
+    ensure_scope_collections_complete,
+    get_scope,
+)
 from group_info_system.db.models import AnalysisRunRow
 from group_info_system.db.repositories import (
     MessageRepository,
@@ -162,9 +167,22 @@ def create_analysis_request(
     window_start: datetime,
     window_end: datetime,
     prompt: VersionedPrompt | None = None,
+    execution_scope_id: int | None = None,
 ) -> AnalysisRequestOutcome:
     selected_prompt = prompt or load_event_extraction_prompt()
-    messages = MessageRepository(session).current_reportable(window_start, window_end)
+    scope: ExecutionScope | None = None
+    message_repository = MessageRepository(session)
+    if execution_scope_id is not None:
+        scope = get_scope(session, execution_scope_id)
+        ensure_scope_collections_complete(session, scope)
+        window_start = scope.window_start
+        window_end = scope.window_end
+        scope_groups = tuple((group.provider, group.external_id) for group in scope.groups)
+        messages = message_repository.current_reportable_for_scope(
+            window_start, window_end, scope_groups
+        )
+    else:
+        messages = message_repository.current_reportable(window_start, window_end)
     repository = ReportRepository(session)
     run = repository.start_analysis(
         analyzer=ANALYZER_NAME,
@@ -174,6 +192,7 @@ def create_analysis_request(
         input_hash=analysis_input_hash(messages),
         window_start=window_start,
         window_end=window_end,
+        execution_scope_id=execution_scope_id,
     )
     run_id = run.id
     repository.save_analysis_inputs(analysis_run_id=run_id, messages=messages)
