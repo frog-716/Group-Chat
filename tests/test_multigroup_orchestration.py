@@ -141,7 +141,7 @@ def finish_empty_report(database_url: str, scope_id: int, output_dir: Path, tran
 
 def test_two_active_groups_one_analysis_one_llm_one_report(migrated_database: str, tmp_path: Path) -> None:
     scope_id = make_scope(migrated_database, registry_config(tmp_path, TWO_GROUPS))
-    collector = MockCollector(empty=True)
+    collector = MockCollector(empty=False)
     assert len(collect_scope(migrated_database, scope_id, collector)) == 2
     transport = MockTransport()
     analysis_id, report_id = finish_empty_report(migrated_database, scope_id, tmp_path / "report", transport)
@@ -163,6 +163,19 @@ def test_partial_collection_failure_preserves_runs_and_blocks_analysis(
         assert statuses == ["succeeded", "failed"]
         assert session.scalar(select(func.count()).select_from(AnalysisRunRow)) == 0
         assert session.scalar(select(func.count()).select_from(ReportRow)) == 0
+
+
+def test_zero_messages_both_groups_still_produce_valid_report(
+    migrated_database: str, tmp_path: Path
+) -> None:
+    scope_id = make_scope(migrated_database, registry_config(tmp_path, TWO_GROUPS))
+    assert len(collect_scope(migrated_database, scope_id, MockCollector(empty=True))) == 2
+    analysis_id, report_id = finish_empty_report(
+        migrated_database, scope_id, tmp_path / "empty-report", MockTransport()
+    )
+    with session_factory(migrated_database)() as session:
+        assert session.get(AnalysisRunRow, analysis_id).status == "succeeded"  # type: ignore[union-attr]
+        assert session.get(ReportRow, report_id).status == "succeeded"  # type: ignore[union-attr]
 
 
 def test_registry_drift_and_recovery_keep_same_scope(migrated_database: str, tmp_path: Path) -> None:
