@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="群聊信息日报总览与证据索引">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23f5f2eb'/%3E%3Cpath d='M15 17h34v23H31l-11 9v-9h-5z' fill='%23ad4f45'/%3E%3Ccircle cx='25' cy='29' r='2.5' fill='%23f5f2eb'/%3E%3Ccircle cx='32' cy='29' r='2.5' fill='%23f5f2eb'/%3E%3Ccircle cx='39' cy='29' r='2.5' fill='%23f5f2eb'/%3E%3C/svg%3E">
+  <title>群日报总览</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182230;
+      --muted: #706f6a;
+      --paper: #f5f3ee;
+      --surface: #fbfaf7;
+      --line: #d8d4cc;
+      --accent: #a84940;
+      --sage: #e7efe8;
+      --sage-ink: #365d48;
+      --shadow: 0 20px 60px rgba(39, 34, 27, .07);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 85% 4%, rgba(168, 73, 64, .07), transparent 24rem),
+        var(--paper);
+      color: var(--ink);
+      font: 16px/1.72 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+      text-rendering: optimizeLegibility;
+    }
+    main { width: min(1080px, calc(100% - 48px)); margin: 0 auto; padding: 64px 0 80px; }
+    .eyebrow { margin: 0; color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+    h1, h2, h3, .metric strong, .report-date {
+      font-family: ui-serif, "Songti SC", STSong, "Noto Serif SC", Georgia, serif;
+      font-weight: 600;
+    }
+    h1 { max-width: 850px; margin: 44px 0 16px; font-size: clamp(3rem, 8vw, 6rem); line-height: .98; letter-spacing: -.055em; }
+    .dek { max-width: 700px; margin: 0; color: var(--muted); font-size: 1.04rem; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 42px;
+      background: rgba(255, 255, 255, .42);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .metric { min-height: 142px; padding: 25px 27px; }
+    .metric + .metric { border-left: 1px solid var(--line); }
+    .metric strong { display: block; color: var(--accent); font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1; }
+    .metric span { display: block; margin-top: 15px; color: var(--muted); font-size: .83rem; }
+    .archive { margin-top: 72px; }
+    .archive-heading { display: flex; justify-content: space-between; gap: 24px; align-items: end; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+    .archive-heading h2 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.6rem); letter-spacing: -.025em; }
+    .archive-heading p { margin: 0; color: var(--muted); font-size: .84rem; }
+    .month { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 48px; padding: 42px 0 52px; border-bottom: 1px solid var(--line); }
+    .month h3 { margin: 0; color: var(--accent); font-size: 1.2rem; letter-spacing: .04em; }
+    .report-list { display: grid; }
+    .report-link {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: center;
+      min-width: 0;
+      padding: 22px 4px;
+      color: inherit;
+      border-bottom: 1px solid var(--line);
+      text-decoration: none;
+      transition: color .18s ease, padding .18s ease;
+    }
+    .report-link:first-child { padding-top: 0; }
+    .report-link:last-child { border-bottom: 0; }
+    .report-link:hover { color: var(--accent); padding-left: 10px; }
+    .report-date { font-size: 1.45rem; line-height: 1; }
+    .report-summary { min-width: 0; }
+    .report-summary strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+    .report-summary span { display: block; margin-top: 4px; overflow: hidden; color: var(--muted); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+    .report-counts { color: var(--muted); font: .76rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+    .arrow { margin-left: 12px; color: var(--accent); font-size: 1rem; }
+    .empty { margin: 44px 0 0; padding: 32px 0; color: var(--muted); border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); }
+    footer { margin-top: 36px; color: var(--muted); font-size: .78rem; }
+    @media (max-width: 760px) {
+      main { width: calc(100% - 28px); padding: 36px 0 56px; }
+      h1 { margin-top: 34px; }
+      .metrics { grid-template-columns: 1fr; }
+      .metric { min-height: 106px; }
+      .metric + .metric { border-left: 0; border-top: 1px solid var(--line); }
+      .archive { margin-top: 52px; }
+      .archive-heading { display: block; }
+      .archive-heading p { margin-top: 8px; }
+      .month { grid-template-columns: 1fr; gap: 24px; padding: 34px 0 42px; }
+      .report-link { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; }
+      .report-counts { grid-column: 2; }
+      .arrow { display: none; }
+    }
+    @media print {
+      body { background: white; }
+      main { width: 100%; padding: 0; }
+      .metrics { box-shadow: none; }
+      .report-link { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Daily archive · Evidence index</p>
+    <h1>留下可追溯的痕迹</h1>
+    <p class="dek">日报记录当天发生了什么；每条结论都保留来源群与原始消息证据。点击日期进入完整日报。</p>
+  </header>
+
+  <div class="metrics" aria-label="日报累计概览">
+    <div class="metric"><strong>{{ report_count }}</strong><span>已有日报天数</span></div>
+    <div class="metric"><strong>{{ message_count }}</strong><span>累计有效消息</span></div>
+    <div class="metric"><strong>{{ event_count }}</strong><span>累计整理结论</span></div>
+  </div>
+
+  <section class="archive" aria-labelledby="archive-title">
+    <div class="archive-heading">
+      <h2 id="archive-title">日报</h2>
+      <p>按月份倒序查看 · 点击日期进入详情</p>
+    </div>
+    {% if months %}
+      {% for month in months %}
+      <div class="month">
+        <h3>{{ month.label | replace("-", " / ") }}</h3>
+        <div class="report-list">
+          {% for item in month.reports %}
+          <a class="report-link" href="{{ item.href }}">
+            <time class="report-date" datetime="{{ item.report_date }}">{{ item.day }}</time>
+            <span class="report-summary">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.source_groups | join(" · ") if item.source_groups else "该窗口暂无有效消息来源" }}</span>
+            </span>
+            <span class="report-counts">{{ item.message_count }} 条消息 · {{ item.event_count }} 条结论 <span class="arrow">→</span></span>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">暂无日报。完成一次 <code>group-info report daily</code> 后，这里会自动出现入口。</p>
+    {% endif %}
+  </section>
+
+  <footer>本页只读取本地报告产物生成，不访问聊天接口，不保存新的业务状态。</footer>
+</main>
+</body>
+</html>

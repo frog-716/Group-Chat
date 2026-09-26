@@ -4,69 +4,230 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="带原始消息证据的群聊信息报告">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101b2d'/%3E%3Cpath d='M16 19h32v21H30l-10 8v-8h-4z' fill='%2369d2b3'/%3E%3Ccircle cx='25' cy='29' r='2.5' fill='%23101b2d'/%3E%3Ccircle cx='32' cy='29' r='2.5' fill='%23101b2d'/%3E%3Ccircle cx='39' cy='29' r='2.5' fill='%23101b2d'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23f5f2eb'/%3E%3Cpath d='M15 17h34v23H31l-11 9v-9h-5z' fill='%23ad4f45'/%3E%3Ccircle cx='25' cy='29' r='2.5' fill='%23f5f2eb'/%3E%3Ccircle cx='32' cy='29' r='2.5' fill='%23f5f2eb'/%3E%3Ccircle cx='39' cy='29' r='2.5' fill='%23f5f2eb'/%3E%3C/svg%3E">
   <title>{{ report.title }}</title>
   <style>
-    :root { color-scheme: light; --ink:#101b2d; --muted:#657085; --paper:#f4f7fb; --card:#fff; --line:#dce3ed; --accent:#0d8f72; --accent-soft:#dff6ee; --warn:#ad5b12; }
-    * { box-sizing:border-box; }
-    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.65 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
-    main { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:34px 0 64px; }
-    header { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:24px; align-items:end; padding:30px; color:white; background:var(--ink); border-radius:22px; box-shadow:0 18px 50px rgba(16,27,45,.15); }
-    h1 { margin:0; font-size:clamp(1.75rem,4vw,3rem); line-height:1.12; letter-spacing:-.035em; }
-    .eyebrow { margin:0 0 10px; color:#8fe4cb; font-size:.85rem; font-weight:750; letter-spacing:.12em; text-transform:uppercase; }
-    .window { margin:12px 0 0; color:#c7d0df; }
-    .metrics { display:grid; grid-template-columns:repeat(2,minmax(90px,1fr)); gap:10px; }
-    .metric { padding:14px 16px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.13); border-radius:14px; }
-    .metric strong { display:block; font-size:1.5rem; }
-    .metric span { color:#c7d0df; font-size:.8rem; }
-    .notice { margin:18px 0 0; padding:12px 16px; color:#075d4b; background:var(--accent-soft); border:1px solid #b7eadb; border-radius:12px; }
-    .sections { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:22px; }
-    section { min-width:0; padding:24px; background:var(--card); border:1px solid var(--line); border-radius:18px; }
-    section h2 { margin:0 0 18px; font-size:1.25rem; }
-    .count { float:right; color:var(--muted); font-size:.85rem; font-weight:500; }
-    article + article { margin-top:18px; padding-top:18px; border-top:1px solid var(--line); }
-    article { min-width:0; }
-    article h3 { margin:0; font-size:1rem; }
-    article p { margin:8px 0; color:#344054; }
-    .meta { display:flex; flex-wrap:wrap; gap:7px; align-items:center; color:var(--muted); font-size:.82rem; }
-    .tag { padding:3px 8px; color:#075d4b; background:var(--accent-soft); border-radius:999px; font-weight:700; }
-    details { margin-top:10px; }
-    summary { cursor:pointer; color:var(--accent); font-weight:700; }
-    blockquote { margin:10px 0 0; padding:10px 13px; color:#344054; background:#f7f9fc; border-left:3px solid var(--accent); }
-    code { overflow-wrap:anywhere; color:var(--warn); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.78rem; }
-    .empty { color:var(--muted); }
-    footer { margin-top:22px; padding:18px 4px; color:var(--muted); font-size:.88rem; }
-    @media (max-width:760px) { main { width:calc(100% - 20px); padding-top:10px; } header { grid-template-columns:minmax(0,1fr); padding:22px; border-radius:16px; } .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .sections { grid-template-columns:minmax(0,1fr); } section { padding:20px; } h1,h2,h3,p,span { overflow-wrap:anywhere; } }
-    @media print { body { background:white; } main { width:100%; padding:0; } header { box-shadow:none; } article { break-inside:avoid; } }
+    :root {
+      color-scheme: light;
+      --ink: #182230;
+      --muted: #706f6a;
+      --paper: #f5f3ee;
+      --surface: #fbfaf7;
+      --line: #d8d4cc;
+      --accent: #a84940;
+      --accent-soft: #f2e5e0;
+      --sage: #e7efe8;
+      --sage-ink: #365d48;
+      --shadow: 0 20px 60px rgba(39, 34, 27, .07);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 85% 4%, rgba(168, 73, 64, .07), transparent 24rem),
+        var(--paper);
+      color: var(--ink);
+      font: 16px/1.72 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+      text-rendering: optimizeLegibility;
+    }
+    a { color: inherit; }
+    main { width: min(1080px, calc(100% - 48px)); margin: 0 auto; padding: 42px 0 72px; }
+    .masthead { padding: 22px 0 44px; border-bottom: 1px solid var(--line); }
+    .topline { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .eyebrow {
+      margin: 0;
+      color: var(--accent);
+      font-size: .78rem;
+      font-weight: 750;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .export-badge {
+      padding: 5px 12px;
+      color: var(--sage-ink);
+      background: var(--sage);
+      border: 1px solid #c9dacd;
+      border-radius: 999px;
+      font-size: .78rem;
+      white-space: nowrap;
+    }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .overview-link {
+      color: var(--muted);
+      font-size: .8rem;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+    }
+    .overview-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+    h1, h2, .metric strong {
+      font-family: ui-serif, "Songti SC", STSong, "Noto Serif SC", Georgia, serif;
+      font-weight: 600;
+    }
+    h1 {
+      max-width: 860px;
+      margin: 44px 0 14px;
+      font-size: clamp(2.65rem, 7vw, 5.35rem);
+      line-height: 1.02;
+      letter-spacing: -.055em;
+    }
+    .dek { max-width: 720px; margin: 0; color: var(--muted); font-size: 1.04rem; }
+    .window { margin: 22px 0 0; color: var(--muted); font: .82rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .source-groups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .source-groups span {
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .42);
+      font-size: .8rem;
+    }
+    .jump-links { display: flex; flex-wrap: wrap; gap: 9px; margin: 24px 0 0; }
+    .jump-links a {
+      padding: 7px 14px;
+      background: rgba(255, 255, 255, .5);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: .88rem;
+      transition: color .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .jump-links a:first-child,
+    .jump-links a:hover { color: var(--accent); border-color: var(--accent); background: var(--surface); }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 32px;
+      background: rgba(255, 255, 255, .42);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .metric { min-height: 138px; padding: 24px 26px; }
+    .metric + .metric { border-left: 1px solid var(--line); }
+    .metric strong { display: block; color: var(--accent); font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1; }
+    .metric span { display: block; margin-top: 14px; color: var(--muted); font-size: .83rem; }
+    .notice {
+      margin: 24px 0 0;
+      padding: 14px 18px;
+      color: var(--sage-ink);
+      background: var(--sage);
+      border-left: 3px solid #709b7d;
+      font-size: .9rem;
+    }
+    .sections { margin-top: 56px; border-bottom: 1px solid var(--line); }
+    .report-section {
+      display: grid;
+      grid-template-columns: minmax(190px, 250px) minmax(0, 1fr);
+      gap: 54px;
+      padding: 44px 0 50px;
+      border-top: 1px solid var(--line);
+      scroll-margin-top: 24px;
+    }
+    .section-heading { align-self: start; }
+    .section-index { color: var(--accent); font: .78rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+    .report-section h2 { margin: 13px 0 0; font-size: clamp(1.55rem, 3vw, 2.15rem); line-height: 1.18; letter-spacing: -.025em; }
+    .count { display: block; margin-top: 10px; color: var(--muted); font-size: .8rem; }
+    .section-body { min-width: 0; }
+    article {
+      min-width: 0;
+      padding: 4px 0 30px;
+      border-bottom: 1px solid var(--line);
+    }
+    article + article { margin-top: 30px; }
+    article:last-child { padding-bottom: 0; border-bottom: 0; }
+    article h3 { margin: 0; font-size: 1.16rem; line-height: 1.4; letter-spacing: -.012em; }
+    article p { max-width: 700px; margin: 10px 0 13px; color: #4e5358; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; color: var(--muted); font-size: .78rem; }
+    .tag { color: var(--accent); font-weight: 750; letter-spacing: .04em; }
+    .tag::before { content: "•"; margin-right: 7px; }
+    details { margin-top: 15px; }
+    summary { width: fit-content; cursor: pointer; color: var(--accent); font-size: .84rem; font-weight: 700; }
+    blockquote {
+      margin: 14px 0 0;
+      padding: 14px 17px;
+      color: #41464b;
+      background: rgba(255, 255, 255, .48);
+      border-left: 2px solid var(--accent);
+    }
+    code { display: inline-block; margin-top: 4px; overflow-wrap: anywhere; color: var(--muted); font: .72rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .empty {
+      margin: 0;
+      padding: 28px 0;
+      color: var(--muted);
+      border-top: 1px dashed var(--line);
+      border-bottom: 1px dashed var(--line);
+      font-family: ui-serif, "Songti SC", STSong, serif;
+      font-size: 1rem;
+    }
+    footer { display: grid; grid-template-columns: 1fr auto; gap: 24px; margin-top: 30px; color: var(--muted); font-size: .78rem; }
+    footer span:last-child { white-space: nowrap; }
+    @media (max-width: 760px) {
+      main { width: calc(100% - 28px); padding-top: 18px; }
+      .masthead { padding-bottom: 30px; }
+      h1 { margin-top: 32px; font-size: clamp(2.35rem, 13vw, 4rem); }
+      .metrics { grid-template-columns: 1fr; }
+      .metric { min-height: 106px; }
+      .metric + .metric { border-left: 0; border-top: 1px solid var(--line); }
+      .report-section { grid-template-columns: 1fr; gap: 26px; padding: 34px 0 40px; }
+      footer { grid-template-columns: 1fr; }
+      footer span:last-child { white-space: normal; }
+      h1, h2, h3, p, span { overflow-wrap: anywhere; }
+    }
+    @media print {
+      body { background: white; }
+      main { width: 100%; padding: 0; }
+      .jump-links { display: none; }
+      .metrics { box-shadow: none; }
+      article, details, blockquote { break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
 <main>
-  <header>
-    <div>
-      <p class="eyebrow">Evidence-traceable report</p>
-      <h1>{{ report.title }}</h1>
-      <p class="window">{{ report.source_scope.start.isoformat() }} — {{ report.source_scope.end.isoformat() }}</p>
+  <header class="masthead">
+    <div class="topline">
+      <p class="eyebrow">Daily report · Evidence index</p>
+      <div class="top-actions">
+        <a class="overview-link" href="{{ overview_href }}">← 日报总览</a>
+        <span class="export-badge">本地生成 · 可追溯</span>
+      </div>
     </div>
-    <div class="metrics">
-      <div class="metric"><strong>{{ report.source_scope.message_count }}</strong><span>条有效消息</span></div>
-      <div class="metric"><strong>{{ report.sections | map(attribute='items') | map('length') | sum }}</strong><span>条分析结论</span></div>
+    <h1>{{ report.title }}</h1>
+    <p class="dek">把当天发生的事整理成可复查的信息线索，每条结论都保留原始消息证据。</p>
+    <p class="window"><time datetime="{{ report.source_scope.start.isoformat() }}">{{ report.source_scope.start.isoformat() }}</time> — <time datetime="{{ report.source_scope.end.isoformat() }}">{{ report.source_scope.end.isoformat() }}</time></p>
+    <div class="source-groups" aria-label="来源群">
+      {% for group in report.source_scope.source_groups %}<span>{{ group }}</span>{% endfor %}
     </div>
+    <nav class="jump-links" aria-label="报告导航">
+      {% for section in report.sections %}<a href="#{{ section.id }}">{{ section.title }}</a>{% endfor %}
+    </nav>
   </header>
+
+  <div class="metrics" aria-label="报告数据概览">
+    <div class="metric"><strong>{{ report.source_scope.message_count }}</strong><span>窗口内有效消息</span></div>
+    <div class="metric"><strong>{{ report.sections | map(attribute='items') | map('length') | sum }}</strong><span>已整理事件结论</span></div>
+    <div class="metric"><strong>{{ report.source_scope.source_groups | length }}</strong><span>本次覆盖来源群</span></div>
+  </div>
+
   {% if report.source_scope.virtual_data %}<p class="notice">模拟数据演示：本页不包含真实群聊内容。</p>{% endif %}
   {% if report.exclusions and report.exclusions[0].get("code") == "NO_VALID_EVENTS" %}<p class="notice">{{ report.exclusions[0]["message"] }}</p>{% endif %}
+
   <div class="sections">
   {% for section in report.sections %}
-    <section id="{{ section.id }}">
-      <h2>{{ section.title }} <span class="count">{{ section.items | length }}</span></h2>
+    <section class="report-section" id="{{ section.id }}">
+      <div class="section-heading">
+        <span class="section-index">{{ "%02d" | format(loop.index) }}</span>
+        <h2>{{ section.title }}</h2>
+        <span class="count">{{ section.items | length }} 条可靠条目</span>
+      </div>
+      <div class="section-body">
       {% if section.items %}
         {% for item in section.items %}
         <article>
           <h3>{{ item.title }}</h3>
           <p>{{ item.summary }}</p>
-          <div class="meta"><span class="tag">{{ item.analysis_kind }}</span><span>{{ item.source_label }}</span></div>
+          <div class="meta"><span class="tag">{{ item.analysis_kind }}</span><span>来源：{{ item.source_label }}</span></div>
           <details>
-            <summary>查看原始证据</summary>
+            <summary>查看原始证据 · {{ item.evidence_ids | length }} 条</summary>
             {% for evidence_id, quote in item.evidence_quotes.items() %}
               <blockquote>{{ quote }}<br><code>{{ evidence_id }}</code></blockquote>
             {% endfor %}
@@ -74,10 +235,11 @@
         </article>
         {% endfor %}
       {% else %}<p class="empty">当前窗口没有可靠条目。</p>{% endif %}
+      </div>
     </section>
   {% endfor %}
   </div>
-  <footer>{{ report.evidence_notes }} · 生成器：{{ report.generated_by }}</footer>
+  <footer><span>{{ report.evidence_notes }}</span><span>生成器 · {{ report.generated_by }}</span></footer>
 </main>
 </body>
 </html>

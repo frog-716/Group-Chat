@@ -8,3 +8,6 @@
 - 未经明确授权，不发布报告，不接触用户未授权的聊天数据。
 - MVP 优先；不引入 SPA、消息队列或微服务。
 
+## Agent skills
+
+本项目使用 `.agents/skills/` 中的 Matt Pocock 工程技能。工单使用本地 Markdown，默认分诊标签和单上下文领域文档规则见 `docs/agents/`。

@@ -83,7 +83,15 @@ def test_production_cli_steps_run_independently(
     assert reported["analysis_run_id"] == analysis_run_id
     assert reported["report_id"] > 0
     assert (output_root / "2026-09-11" / "report.json").is_file()
-    assert (output_root / "2026-09-11" / "report.html").is_file()
+    report_html = output_root / "2026-09-11" / "report.html"
+    assert report_html.is_file()
+    assert 'href="../index.html"' in report_html.read_text(encoding="utf-8")
+    report_index = output_root / "index.html"
+    assert report_index.is_file()
+    index_html = report_index.read_text(encoding="utf-8")
+    assert 'href="2026-09-11/report.html"' in index_html
+    assert "6 条消息 · 5 条结论" in index_html
+    assert "MVP 产品群（模拟）" in index_html
 
     sessions = session_factory(migrated_database)
     with sessions() as session:

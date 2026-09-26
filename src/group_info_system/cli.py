@@ -48,7 +48,7 @@ from group_info_system.group_registry import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_GROUPS_CONFIG = ROOT / "config" / "groups.yaml"
+DEFAULT_GROUPS_CONFIG = ROOT / "config" / "groups.local.yaml"
 
 
 def parse_datetime(value: str) -> datetime:

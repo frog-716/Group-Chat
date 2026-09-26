@@ -13,7 +13,7 @@ from group_info_system.db.repositories import ReportRepository, db_datetime_as_u
 from group_info_system.domain.analysis import AnalysisItem, AnalysisResult
 from group_info_system.domain.reports import ReportEnvelope
 from group_info_system.reports.builder import build_report
-from group_info_system.reports.renderer import write_report_html
+from group_info_system.reports.renderer import write_report_html, write_report_index
 from group_info_system.reports.validator import validate_report
 
 
@@ -83,6 +83,7 @@ def build_daily_report_from_analysis(
         html_path = destination / "report.html"
         report_path.write_text(report_json + "\n", encoding="utf-8")
         write_report_html(report, html_path)
+        write_report_index(destination.parent)
 
         report_repository.finish_report(report_row, report_json=report_json)
         session.commit()

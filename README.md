@@ -66,6 +66,13 @@ uv run group-info serve
 
 数据库写入 `var/group_info.db`，报告写入 `var/output/<日期>/`。全部运行时路径均被 Git 忽略。
 
+真实群配置同样只保存在本地。首次配置时复制示例并填写实际群标识：
+
+```bash
+cp config/groups.example.yaml config/groups.local.yaml
+uv run group-info groups validate
+```
+
 模拟闭环仅用于本地回归测试，不是生产采集流程的依赖：
 
 ```bash
